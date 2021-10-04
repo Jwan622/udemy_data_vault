@@ -497,3 +497,19 @@ so to solve this problem we create effectivity satellite which is connected to l
 the primary key is the same hashkey from the link table. and then it contains effective_from and effective_to columns to track the relationship effectivity.  you can leave effective_to as empty when the data first loads to express that it's active.
 
 ![effectivity_table](images/effectivity_table.png)
+
+the dates come from the source system. we do not make them up.
+
+
+Example:
+this is the standard link satellite where the link satellite records changes:
+
+![effectivity_satellite1](images/effectivity_satellite1.png)
+- no changes to link table.
+- remember no updates to satellite table. all updates are inserts in the satellite table.
+
+Here's how we'd use effectiviy sattelites:
+![effectivity_satellite2](images/effectivity_satellite2.png)
+
+- notice when tim joins a new department (IT), there's a new link table record, a new satellite record, and a new effectivity record (to say that the relationship for sales and tim is old and the new relationship with IT is effective and current).
+- notice employee_id is the driving key because it does not change and the changes are around the employee. We're recording changes to teh employee relationship and the emp_id stays constant so it's the driving key.
