@@ -73,7 +73,7 @@ state column depends on country column and not the primary key.
 ### Why is denorm important?
 - updates have to update all rows in record. You can't miss 1 otherwise data inconsistency.
 - but because data is combined into 1 place, reads are faster.
-![denormalization_importance.png](images/denormalization_importance.png)
+
   
 ### Norm vs Denorm
 ![norm_vs_denorm.png](images/norm_vs_denorm.png)
@@ -299,7 +299,7 @@ what is a business key? Independent from natural systems and is also called a na
 - Hub Entity must never contain foreign keys
 - Hubs stand alone (be a parent to all other tables)
 - business key and primary keys never change
-
+- hubs can store hash keys and they can be a combination of business keys
 
 #### Link Tables
 - link tables join hubs to other hubs
@@ -471,7 +471,7 @@ look at sample, credit card number is an attribute. we have a sequence number to
 simply keeps track of cdc operations:
 
 
-![status_tracking_satellite](images/status_tracking_satellite)
+![status_tracking_satellite](images/status_tracking_satellite.png)
 
 
 #### Record Tracking satellite
@@ -488,13 +488,13 @@ so when new full load data comes in on the left, we compare it to the staging ar
 
 #### Effectivity Satellite and Driving Key
 
-- so in this scenario, the link table may violate the business rules. Say there is a business rule that states that an employee cannot be part of more than 1 department... but if an employee moves he ends the relationship with the previous department. But the Link table does not have an end_date or convey this info. See diagram.
+- so in this scenario, the link table may violate the business rules. Say there is a business rule that states that an employee cannot be part of more than 1 department... but if an employee moves he ends the relationship with the previous department. But the Link table does not have an end_date or convey this info. so the link table will contain two relatinoships (say a student in 2 different majors or an employee in 2 different departments) which violates the businesss roles See diagram.
 
 ![effectivity_satellite](images/effectivity_satellite.png)
 
-so to solve this problem we create effectivity satellite which is connected to link tables to track that a previous relationship is ended. it records time period when relationship has starte and ended.
+so to solve this problem we create **effectivity satellites** which is connected to link tables to track that a previous relationship is ended. They track time period of the relationship. These effectivity satellites record the time period when relationship has started and ended.
 
-the primary key is the same hashkey from the link table. and then it contains effective_from and effective_to columns to track the relationship effectivity.  you can leave effective_to as empty when the data first loads to express that it's active.
+The primary key is the same hashkey from the link table. and then it contains effective_from and effective_to columns to track the relationship effectivity.  you can leave effective_to as empty or like at year 9999 when the data first loads to express that it's active.
 
 ![effectivity_table](images/effectivity_table.png)
 
@@ -511,5 +511,47 @@ this is the standard link satellite where the link satellite records changes:
 Here's how we'd use effectiviy sattelites:
 ![effectivity_satellite2](images/effectivity_satellite2.png)
 
+- when tim has a salary or package type change, those changes are done in the standard link satellite but not in the effectivity satellite.
+- department changes are done in the effectivity satellite and the link table AND the standard link table because a new hash key between the employee and department needs to be created (new relationship).
 - notice when tim joins a new department (IT), there's a new link table record, a new satellite record, and a new effectivity record (to say that the relationship for sales and tim is old and the new relationship with IT is effective and current).
-- notice employee_id is the driving key because it does not change and the changes are around the employee. We're recording changes to teh employee relationship and the emp_id stays constant so it's the driving key.
+- notice employee_id is the **driving** key because it does not change and the changes are around the employee. We're recording changes to teh employee relationship and the emp_id stays constant so it's the driving key. The driving key is the PK of the child table, the table that has the foreign key because it's the one that is changing. Here the employee is the child table because the employee belongs to a department.
+- when an employee changes departments and comes back at different times, that info isn't in the standard satellite (only captures characteristics of the relationship), and the link table doesn't show this either... the link only shows the relationship but doesn't show when the relationship was effective. that's what the effectivity is for.
+
+
+# Data Vault Architecture
+
+Notice the data vault is composed of the raw vault and business vault:
+
+![data_vault](images/data_vault.png)
+
+- hard rules do not changes format of data or meaning. converstion of data type but not meaning of data. They change the way of data is stored. Maybe truncation of data and is used when data is extracted from source system.
+- soft rules transform data into different formats. They change the data or meaning of the data. They aggregate data or separate data or transform format of the data. It's for end user.
+- so data warehouse stores in granularity provided by source system because only hard rules are applied.
+- the data warehouse can have the data vault and stores all time-variant data.
+- raw vault: the hub-link-satellite structure and is used by sql power users who knows the data relationships. a lot of users should not use this layer of the architecture, they should use the next information vault.
+- business vault: pit (point in time)-bridge-reference structure. This is optional.
+- information layer: for end user and can be dimension and fact tables and in star schema. easy data access.
+
+**data vault is only really accessed by power users who know joins and advanced sql**
+
+![data_vault_vs_information_mart.png](images/data_vault_vs_information_mart.png)
+
+
+# Business Vault
+
+#### Point in time tables
+- it's a specialized type of satellite that helps with query performance from a hub with multiple satellites.
+- make query out of data vault easier and to increase the query performance is the main point.
+- remember a Hub can have multiple satellites. Why? Different rate of changes of the data. Maybe one attribute changes faster than another so we separate the attributes out to different satellite tables. For ex, a customer phone number changes faster than her name. We don't want to load an entire row into single big satellite table each time her phone changes. Query performance is better if fewer row in the smaller satellite tables.
+- if an end user (data science) asks what a customers phone number was in a specific point in time, these point in time tables help with that question. Satellites normally have different load dates so that query could get tricky if the Hub table has multiple load dates such as below:
+
+![PIT_table.png](images/PIT_table.png)
+
+- they store max load_date of each attribute from each of the satellites.
+- we need to create a new PIT table record every day.
+
+This is how we would query a PIT table:
+
+![PIT_table_query.png](images/PIT_table_query.png)
+
+In the above, we use the PIT table to get the latest up to date attribute in each satellite table when the HUB has multiple satellite tables.
