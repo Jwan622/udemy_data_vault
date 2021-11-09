@@ -555,3 +555,55 @@ This is how we would query a PIT table:
 ![PIT_table_query.png](images/PIT_table_query.png)
 
 In the above, we use the PIT table to get the latest up to date attribute in each satellite table when the HUB has multiple satellite tables.
+
+
+#### Bridge Tables
+
+- improves performance by reducing number of joins needed for a query.
+
+If we need which employees, their department, and their roles. we can do that given the structure below, but there are multiople Hubs and Links between Satellites and so we need a lot of joins to bring the data together. As the number of Sql joins goes up, performance decreases. In this join query, we needed to traverse the entire graph of Hubs, Links, and Satellites to get the data we need in the Select statement.
+
+![bridge_table.png](images/bridge_table.png)
+
+- as you can see below, the bridge table contains all of the hash keys from Hubs and Links so the subsequent join is a lot fewer. Only needs to join to the satellite tables for the descriptive data. This will eliminate joins and increase performance. With bridge tables, you no longer need to join with Hubs and Links since the Bridge has all the hash key info. We just need to join to the satellite tables.
+
+![bridge_table_2.png](images/bridge_table_2.png)
+
+the bridge table seems to be a combined table of employee, department, and role, the bridge table has all that info. includes all info so you don't need to pass through and join all the tables.
+
+#### Reference Table
+- not main component in data vault but used. It is common to introduce additional descriptive information that isn't provided by the operational data systems. They contain descriptive information that do not change and are used to describe the business keys. Connected to satellite table. Since they do not refer to an entity, they are not stored in the Hub table. 
+- Reference are lookup tables are used to store reference codes that can describe keys in Hub tables. But we do not put them in satellite table since they are often repeated.
+- In the example below, the `code` column is the foreign key and primary key of reference table. The code is something like phone or mouse. But the reference stores data like description of the mouse or phone.
+
+![reference_table.png](images/reference_table.png)
+
+
+# Information Vault
+
+- contains fact and dimension tables.
+- why do we need this? Data vault is not optimized for query performance and if used, users need advanced SQL skills in order to get results out of raw or business vault. Not compatible with a lot of BI tables
+- The information Vault is like data mart for regular data warehouse approaches but the key is that you need to form dimension and fact tables out of Hub, Sat, and Link tables.
+- **Hub and Sat can be Dimensions, Link and Sat tables can be Fact Tables.** This is how to create a Star Schema out of Data Vault model. You can just build the Information Vault using Views so we don't need to care about the data loading process for an additional layer.
+
+![dimension_info_vault.png](images/dimension_info_vault.png)
+
+Two types of Dimension tables, here's a reminder
+- Type 1 stores only current
+- Type 2 stores historical
+
+In the example below, Jim Black changes cust_type. Type 1 does not store the past and simply updates the cust_type, Type 2 does store the past by adding a new record
+
+![dimension_table_type.png](images/dimension_table_type.png)
+
+If the information is critical and needs to be saved, opt for Type 2 Dimension Table. Sometimes it's not necessary. Like phone number information... we don't need the history of phone numbers, just the latest. But customer type information might be type 2 since we want to see what customer types buy more. contact info could be type 1, customer categories can be type 2.
+
+So what does history in satellite type look like?
+- remembert we do not update satellite tables. We create new records.
+
+The right side is the history in satellite. We can look for the latest
+
+The left side is similar type 2 for cust_type data
+
+![type_2_satellite.png](images/type_2_satellite.png)
+
