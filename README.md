@@ -599,7 +599,7 @@ In the example below, Jim Black changes cust_type. Type 1 does not store the pas
 If the information is critical and needs to be saved, opt for Type 2 Dimension Table. Sometimes it's not necessary. Like phone number information... we don't need the history of phone numbers, just the latest. But customer type information might be type 2 since we want to see what customer types buy more. contact info could be type 1, customer categories can be type 2.
 
 So what does history in satellite type look like?
-- remembert we do not update satellite tables. We create new records.
+- remember we do not update satellite tables. We create new records.
 
 The right side is the history in satellite. We can look for the latest
 
@@ -607,3 +607,39 @@ The left side is similar type 2 for cust_type data
 
 ![type_2_satellite.png](images/type_2_satellite.png)
 
+#### Type 1 - Dimension with single Satellite
+- we only load latest information to Dimension table
+
+![type_1_dimension.png](images/type_1_dimension.png)
+- notice the sql statement above loads from the hub and satellite into the dimension table. That sql query would be what the data vault model would look like.
+- we utilize the load date in the satellite table to load the latest data into the dimension table.
+- when the satellite changes or when records are updated, we need to reload the dimension table. So if there's a new phone number, then there's a new version, so we need to truncate the dimension table.
+
+
+#### Type 1 - Dimension with multiple Satellite
+- two ways to do this: nested subqueries or PIT tables.
+- get maximum `load_date` info for each satellite table. add one more sub query for each satellite in the sql.
+  
+![type_1_dimension_multiple.png](images/type_1_dimension_multiple.png)
+
+- or use a PIT table that shows the latest `load_date` for each satellite which we then use to grab the attributes from the rows in the satellite table. PIT tables reduce complexity and increase performance. Look at this:
+
+![type_1_dimension_multiple2.png](images/type_1_dimension_multiple2.png)
+
+
+#### Type 2 - Dimension with single Satellite
+- say we want phone number for each customer in a specific point in time. we need historical data now. Fraud detection perhaps?
+
+- in the image below, there's an update to phone number so there's a new record in the satellite table, since we append only to this table.
+
+- What happens to the dimension? We need a `valid_to` and `valid_from` column because if we're keeping historical data, we need to know when data is valid or expired. Notice the latest `load_date` from satellite becomes the `valid_from` date.
+
+![type_2_dimension.png](images/type_2_dimension.png)
+
+- notice the surrogate key `cust_key` because the business key `name` isn't unqiue if we're keeping historical records.
+
+
+#### Type 2 - Dimension with multiple Satellite
+- no real diff except we use PIT tables again
+
+![type_2_dimension_multiple.png](images/type_2_dimension_multiple.png)
