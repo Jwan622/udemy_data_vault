@@ -643,3 +643,18 @@ The left side is similar type 2 for cust_type data
 - no real diff except we use PIT tables again
 
 ![type_2_dimension_multiple.png](images/type_2_dimension_multiple.png)
+
+
+#### Fact Table
+- derived from link and satellite tables. not every link has a satellite so they are optional
+-IN this example we have sport clubs like yoga and swimming. 2 members registered for different clubs (sports). the satellite table has registration date and type for these clubs.
+- if the member upgrades her membership while in a class, the link's satellite table changes, but the link does not get a new record because her relationship to the class has not changed, just her membership type. we see that here:
+
+![fact_table1.png](images/fact_table1.png)
+
+
+So let's see what happens to the fact table.
+- we have 2 rows, for each member and their valid membership type. NOtice only member 101 upgraded their membership which is why we have 2 rows in fact table. Unlike dimension table, each member has their own `valid_to` maintained separately.
+- when the member upgrades their membership, we update the `valid_to` column for member 101.
+
+![fact_table2.png](images/fact_table2.png)
